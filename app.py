@@ -11,6 +11,10 @@ def load_data():
         # Read all as string first to protect codes/phones
         data = pd.read_csv("bookings.csv", dtype=str)
         
+        # --- FIX: Clean Column Headers ---
+        # This strips invisible spaces (e.g. "Lat " -> "Lat")
+        data.columns = data.columns.str.strip()
+        
         # FIXES: Fill empty cells & Standardize Code
         data['Code'] = data['Code'].ffill()
         data['Code'] = data['Code'].str.strip().str.upper()
@@ -84,10 +88,14 @@ if submit_button:
                 with c2:
                     # --- THE EMBEDDED MAP ---
                     # We check if we have valid numbers for this specific passenger
-                    if 'Lat' in row and pd.notna(row['Lat']) and pd.notna(row['Lon']):
+                    # Note: We check row.get('Lat') to avoid crashing if column missing
+                    lat = row.get('Lat')
+                    lon = row.get('Lon')
+                    
+                    if pd.notna(lat) and pd.notna(lon):
                         # Create a tiny dataframe for just this one spot
-                        map_data = pd.DataFrame({'lat': [row['Lat']], 'lon': [row['Lon']]})
-                        # Display the map (zoom=15 is street level)
+                        map_data = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+                        # Display the map (zoom=14 is street level)
                         st.map(map_data, zoom=14, size=50, use_container_width=True)
                     else:
                         # Fallback if no coordinates in CSV
