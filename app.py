@@ -7,7 +7,6 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
 # --- MEMORY FIX: Initialize Session State ---
-# This keeps the search active even after the map loads
 if 'search_performed' not in st.session_state:
     st.session_state.search_performed = False
 if 'booking_code' not in st.session_state:
@@ -24,8 +23,11 @@ def load_data():
         data['Code'] = data['Code'].ffill()
         data['Code'] = data['Code'].str.strip().str.upper()
         
+        # SAFETY: Default columns if missing
         if 'Direction' not in data.columns:
             data['Direction'] = "Both"
+        if 'PickupTime' not in data.columns:
+            data['PickupTime'] = "TBC"  # Default if column is missing
 
         # Convert Lat/Lon to numbers
         if 'Lat' in data.columns and 'Lon' in data.columns:
@@ -74,25 +76,57 @@ if st.session_state.search_performed:
         for index, row in bookings.iterrows():
             with st.expander(f"🎫 TICKET: {row['Name']}", expanded=True):
                 
-                # --- TRAVEL BADGE ---
+                # --- LOGIC: DETERMINE LABELS & MESSAGES ---
                 direction = str(row['Direction']).title()
+                
+                # Defaults
+                label_text = "Pickup:"
+                show_pickup_time = False
+                show_return_msg = False
+                badge_color = "blue"
+                icon = "🚌"
+
                 if "Both" in direction:
+                    label_text = "Pickup & Dropoff:"
+                    show_pickup_time = True
+                    show_return_msg = True
                     badge_color, icon = "green", "🔄"
-                elif "To" in direction:
+                elif "To" in direction: # To Party Only
+                    label_text = "Pickup:"
+                    show_pickup_time = True
+                    show_return_msg = False
                     badge_color, icon = "orange", "➡️"
-                else:
+                else: # Return Only
+                    label_text = "Dropoff:"
+                    show_pickup_time = False
+                    show_return_msg = True
                     badge_color, icon = "blue", "⬅️"
 
+                # --- DISPLAY BADGE ---
                 st.markdown(f":{badge_color}[**{icon} Travel Direction: {direction}**]")
                 st.divider()
 
-                # --- DETAILS ---
+                # --- DETAILS SECTION ---
                 c1, c2 = st.columns([1.5, 2])
                 with c1:
                     st.write(f"**Route:** {row['Route']}")
-                    st.write(f"**Pickup:** {row['Pickup']}")
+                    
+                    # Dynamic Label (Pickup vs Dropoff)
+                    st.write(f"**{label_text}** {row['Pickup']}")
+                    
+                    # Show Pickup Time (Only for Both or To Party)
+                    if show_pickup_time:
+                        # Get time safely (handle if cell is empty)
+                        p_time = row.get('PickupTime')
+                        if pd.isna(p_time): p_time = "TBC"
+                        st.write(f"**⏱️ Pickup Time:** {p_time}")
+
+                    # Show Return Message (Only for Both or Return)
+                    if show_return_msg:
+                        st.info("ℹ️ **Return:** All coaches depart Silverstone at 01:00 AM.")
+
                     if pd.notna(row['MapLink']):
-                        st.link_button("📍 What 3 Words Link", row['MapLink'])
+                        st.link_button("📍 Google Maps Link", row['MapLink'])
                         
                 with c2:
                     # --- PROFESSIONAL MAP (Folium) ---
@@ -107,9 +141,6 @@ if st.session_state.search_performed:
                             tooltip=row['Pickup']
                         ).add_to(m)
                         
-                        # --- THE FIX: key=f"map_{index}" ---
-                        # This tells Streamlit: "This is Map #0, This is Map #1"
-                        # So it stops treating them as duplicates.
                         st_folium(
                             m, 
                             height=200, 
@@ -138,4 +169,3 @@ if st.session_state.search_performed:
         if st.button("Reset Search"):
             st.session_state.search_performed = False
             st.rerun()
-
