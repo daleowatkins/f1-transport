@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import folium
+from streamlit_folium import st_folium
 
 # 1. Page Config
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
@@ -8,22 +10,17 @@ st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="cen
 @st.cache_data
 def load_data():
     try:
-        # Read all as string first to protect codes/phones
         data = pd.read_csv("bookings.csv", dtype=str)
+        data.columns = data.columns.str.strip() # Fix invisible spaces
         
-        # --- FIX: Clean Column Headers ---
-        # This strips invisible spaces (e.g. "Lat " -> "Lat")
-        data.columns = data.columns.str.strip()
-        
-        # FIXES: Fill empty cells & Standardize Code
+        # Fill empty cells & Standardize
         data['Code'] = data['Code'].ffill()
         data['Code'] = data['Code'].str.strip().str.upper()
         
-        # SAFETY: Default Direction if missing
         if 'Direction' not in data.columns:
             data['Direction'] = "Both"
 
-        # MAPS: Convert Lat/Lon to numbers (so the map can read them)
+        # Convert Lat/Lon to numbers
         if 'Lat' in data.columns and 'Lon' in data.columns:
             data['Lat'] = pd.to_numeric(data['Lat'], errors='coerce')
             data['Lon'] = pd.to_numeric(data['Lon'], errors='coerce')
@@ -76,29 +73,32 @@ if submit_button:
                 st.divider()
 
                 # --- DETAILS ---
-                c1, c2 = st.columns([1.5, 2]) # Adjusted width for map
+                c1, c2 = st.columns([1.5, 2])
                 with c1:
                     st.write(f"**Route:** {row['Route']}")
                     st.write(f"**Pickup:** {row['Pickup']}")
-                    
-                    # Link Button (Always useful as a backup)
                     if pd.notna(row['MapLink']):
-                        st.link_button("📍 Open in Google Maps", row['MapLink'])
+                        st.link_button("📍 Google Maps Link", row['MapLink'])
                         
                 with c2:
-                    # --- THE EMBEDDED MAP ---
-                    # We check if we have valid numbers for this specific passenger
-                    # Note: We check row.get('Lat') to avoid crashing if column missing
+                    # --- NEW: PROFESSIONAL MAP (Folium) ---
                     lat = row.get('Lat')
                     lon = row.get('Lon')
                     
                     if pd.notna(lat) and pd.notna(lon):
-                        # Create a tiny dataframe for just this one spot
-                        map_data = pd.DataFrame({'lat': [lat], 'lon': [lon]})
-                        # Display the map (zoom=14 is street level)
-                        st.map(map_data, zoom=14, size=50, use_container_width=True)
+                        # Create a standard street map centered on the pickup
+                        m = folium.Map(location=[lat, lon], zoom_start=16)
+                        
+                        # Add a professional blue pin
+                        folium.Marker(
+                            [lat, lon], 
+                            popup=row['Pickup'],
+                            tooltip="Pickup Point"
+                        ).add_to(m)
+                        
+                        # Display the map inside the card
+                        st_folium(m, height=200, use_container_width=True)
                     else:
-                        # Fallback if no coordinates in CSV
                         st.info("🗺️ Map preview not available")
 
         # Email Button
