@@ -6,6 +6,17 @@ from streamlit_folium import st_folium
 # 1. Page Config
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
+# --- HIDE STREAMLIT STYLE (Toolbar & Footer) ---
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            .stAppDeployButton {display:none;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
+
 # --- MEMORY FIX: Initialize Session State ---
 if 'search_performed' not in st.session_state:
     st.session_state.search_performed = False
@@ -23,11 +34,10 @@ def load_data():
         data['Code'] = data['Code'].ffill()
         data['Code'] = data['Code'].str.strip().str.upper()
         
-        # SAFETY: Default columns if missing
         if 'Direction' not in data.columns:
             data['Direction'] = "Both"
         if 'PickupTime' not in data.columns:
-            data['PickupTime'] = "TBC"  # Default if column is missing
+            data['PickupTime'] = "TBC"
 
         # Convert Lat/Lon to numbers
         if 'Lat' in data.columns and 'Lon' in data.columns:
@@ -85,22 +95,26 @@ if st.session_state.search_performed:
                 show_return_msg = False
                 badge_color = "blue"
                 icon = "🚌"
+                pin_color = "blue" 
 
                 if "Both" in direction:
                     label_text = "Pickup & Dropoff:"
                     show_pickup_time = True
                     show_return_msg = True
                     badge_color, icon = "green", "🔄"
+                    pin_color = "green"
                 elif "To" in direction: # To Party Only
                     label_text = "Pickup:"
                     show_pickup_time = True
                     show_return_msg = False
                     badge_color, icon = "orange", "➡️"
+                    pin_color = "green"
                 else: # Return Only
                     label_text = "Dropoff:"
                     show_pickup_time = False
                     show_return_msg = True
                     badge_color, icon = "blue", "⬅️"
+                    pin_color = "blue"
 
                 # --- DISPLAY BADGE ---
                 st.markdown(f":{badge_color}[**{icon} Travel Direction: {direction}**]")
@@ -111,22 +125,22 @@ if st.session_state.search_performed:
                 with c1:
                     st.write(f"**Route:** {row['Route']}")
                     
-                    # Dynamic Label (Pickup vs Dropoff)
+                    # Dynamic Label
                     st.write(f"**{label_text}** {row['Pickup']}")
                     
-                    # Show Pickup Time (Only for Both or To Party)
+                    # Show Pickup Time
                     if show_pickup_time:
-                        # Get time safely (handle if cell is empty)
                         p_time = row.get('PickupTime')
                         if pd.isna(p_time): p_time = "TBC"
                         st.write(f"**⏱️ Pickup Time:** {p_time}")
 
-                    # Show Return Message (Only for Both or Return)
+                    # Show Return Message
                     if show_return_msg:
                         st.info("ℹ️ **Return:** All coaches depart Silverstone at 01:00 AM.")
 
+                    # UPDATE: Changed Button Text
                     if pd.notna(row['MapLink']):
-                        st.link_button("📍 Google Maps Link", row['MapLink'])
+                        st.link_button("/// What 3 Words Link", row['MapLink'])
                         
                 with c2:
                     # --- PROFESSIONAL MAP (Folium) ---
@@ -135,10 +149,15 @@ if st.session_state.search_performed:
                     
                     if pd.notna(lat) and pd.notna(lon):
                         m = folium.Map(location=[lat, lon], zoom_start=16)
+                        
+                        # Custom Icon
+                        icon_obj = folium.Icon(color=pin_color, icon="bus", prefix="fa")
+                        
                         folium.Marker(
                             [lat, lon], 
                             popup=row['Pickup'],
-                            tooltip=row['Pickup']
+                            tooltip=row['Pickup'],
+                            icon=icon_obj
                         ).add_to(m)
                         
                         st_folium(
