@@ -7,6 +7,7 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
 # --- MEMORY FIX: Initialize Session State ---
+# This keeps the search active even after the map loads
 if 'search_performed' not in st.session_state:
     st.session_state.search_performed = False
 if 'booking_code' not in st.session_state:
@@ -17,7 +18,7 @@ if 'booking_code' not in st.session_state:
 def load_data():
     try:
         data = pd.read_csv("bookings.csv", dtype=str)
-        data.columns = data.columns.str.strip() # Fix invisible spaces
+        data.columns = data.columns.str.strip() # Clean messy headers
         
         # Fill empty cells & Standardize
         data['Code'] = data['Code'].ffill()
@@ -53,19 +54,16 @@ if df is None:
 with st.container(border=True):
     st.write("Please enter your booking reference.")
     
-    # We use a callback to update the 'Memory' when the button is clicked
+    # Callback to save the search
     def update_search():
         st.session_state.search_performed = True
-        # Store the code in memory so we don't lose it on refresh
         st.session_state.booking_code = st.session_state.widget_input.upper().strip()
 
     with st.form(key='login_form'):
-        # We link this input to 'widget_input'
         st.text_input("Booking Code", key="widget_input")
-        # The button now triggers the 'update_search' function
         st.form_submit_button(label='Find My Booking', type="primary", on_click=update_search)
 
-# 5. Results Logic (Checks MEMORY, not just the button)
+# 5. Results Logic
 if st.session_state.search_performed:
     user_code = st.session_state.booking_code
     bookings = df[df['Code'] == user_code]
@@ -102,18 +100,23 @@ if st.session_state.search_performed:
                     lon = row.get('Lon')
                     
                     if pd.notna(lat) and pd.notna(lon):
-                        # Create Map centered on pickup
                         m = folium.Map(location=[lat, lon], zoom_start=16)
-                        
-                        # Add Blue Pin
                         folium.Marker(
                             [lat, lon], 
                             popup=row['Pickup'],
                             tooltip=row['Pickup']
                         ).add_to(m)
                         
-                        # Display Map (with specific returned_objects to prevent extra reloads)
-                        st_folium(m, height=200, use_container_width=True, returned_objects=[])
+                        # --- THE FIX: key=f"map_{index}" ---
+                        # This tells Streamlit: "This is Map #0, This is Map #1"
+                        # So it stops treating them as duplicates.
+                        st_folium(
+                            m, 
+                            height=200, 
+                            use_container_width=True, 
+                            returned_objects=[],
+                            key=f"map_{index}" 
+                        )
                     else:
                         st.info("🗺️ Map preview not available")
 
@@ -132,7 +135,6 @@ if st.session_state.search_performed:
 
     else:
         st.error("❌ Code not found. Please check your reference.")
-        # Optional: Reset memory so they can try again
-        if st.button("Reset"):
+        if st.button("Reset Search"):
             st.session_state.search_performed = False
             st.rerun()
