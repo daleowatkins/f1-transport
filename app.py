@@ -1,72 +1,84 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Page Configuration (Title and Icon)
-st.set_page_config(page_title="Party Transport", page_icon="🏎️")
+# 1. Page Config
+st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
-# 2. Load the Data
-# We use a function with @st.cache_data so it doesn't reload the CSV every time someone clicks a button.
+# 2. Load Data (With Safety Fixes)
 @st.cache_data
 def load_data():
-    # Ensure your CSV file is named exactly 'bookings.csv'
-    # 'dtype=str' ensures phone numbers or codes aren't read as math numbers
-    data = pd.read_csv("bookings.csv", dtype=str)
-    # Clean up any whitespace in the codes (e.g. " HAM44 " becomes "HAM44")
-    data['Code'] = data['Code'].str.strip()
-    return data
+    try:
+        # Read the file as text (dtype=str) to keep phone numbers/codes safe
+        data = pd.read_csv("bookings.csv", dtype=str)
+        
+        # ### NEW: Fix Empty Cells ###
+        # If you left the guest's code blank in Excel, this copies the code from the person above
+        data['Code'] = data['Code'].ffill()
+        
+        # ### NEW: Cleanup ###
+        # Forces all codes to Uppercase and removes invisible spaces
+        data['Code'] = data['Code'].str.strip().str.upper()
+        
+        return data
+    except FileNotFoundError:
+        return None
 
+df = load_data()
+
+# 3. Main App Interface
 try:
-    df = load_data()
-except FileNotFoundError:
-    st.error("Error: 'bookings.csv' not found. Please upload your data file.")
+    st.logo("logo.png") # Will show if you have a logo.png
+except:
+    pass
+
+st.title("🎄 Christmas Party Transport")
+
+if df is None:
+    st.error("⚠️ System Error: 'bookings.csv' not found.")
     st.stop()
 
-# 3. The Website Design
-st.title("🎄 Christmas Party Transport")
-st.write("Please enter your personal booking code to view your route.")
+# 4. Login Box
+with st.container(border=True):
+    st.write("Please enter your booking reference.")
+    with st.form(key='login_form'):
+        # ### NEW: Auto-uppercase input so 'ham44' works for 'HAM44'
+        user_code = st.text_input("Booking Code").upper().strip()
+        submit_button = st.form_submit_button(label='Find My Booking', type="primary")
 
-# 4. The Login Box
-# The form container allows users to hit "Enter" on their keyboard to submit
-with st.form(key='login_form'):
-    user_code = st.text_input("Booking Code")
-    submit_button = st.form_submit_button(label='Find My Seat')
-
-# 5. Logic: Check the code
+# 5. Results Logic (The fix is here)
 if submit_button:
-    # Filter the database for the entered code
-    booking = df[df['Code'] == user_code]
+    # Find ALL rows that match the code
+    bookings = df[df['Code'] == user_code]
 
-    if not booking.empty:
-        # Get the first match (in case of duplicates, takes the first)
-        details = booking.iloc[0]
+    if not bookings.empty:
+        st.success(f"✅ Found {len(bookings)} passengers")
         
-        st.success(f"Welcome, {details['Name']}!")
+        # ### NEW: The Loop ###
+        # This goes through EVERY person found, not just the first one
+        for index, row in bookings.iterrows():
+            with st.expander(f"🎫 TICKET: {row['Name']}", expanded=True):
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    st.write(f"**Route:** {row['Route']}")
+                    st.write(f"**Pickup:** {row['Pickup']}")
+                with c2:
+                    if pd.notna(row['MapLink']):
+                        st.link_button("🗺️ Map", row['MapLink'])
+                    else:
+                        st.write("*(No Map)*")
         
-        # Display Details nicely
+        # Email Amendment Button
         st.divider()
-        col1, col2 = st.columns(2)
+        main_contact = bookings.iloc[0]['Name']
+        subject = f"Change Request: {user_code}"
+        body = f"Hello Transport Team,%0D%0A%0D%0AI need to request a change for booking {user_code} (Main Contact: {main_contact})."
         
-        with col1:
-            st.metric(label="Your Route", value=details['Route'])
-        with col2:
-            st.info(f"📍 **Pickup Point:**\n\n{details['Pickup']}")
+        st.markdown(
+            f'<div style="text-align: center;"><a href="mailto:transport@yourteam.com?subject={subject}&body={body}" '
+            f'style="text-decoration:none; background-color:#FF4B4B; color:white; padding:10px 20px; border-radius:5px;">'
+            f'✉️ Request Amendment for Group</a></div>', 
+            unsafe_allow_html=True
+        )
 
-        # Map Button
-        if pd.notna(details['MapLink']):
-            st.link_button("🗺️ View Pickup Location (Map)", details['MapLink'])
-        
-        st.divider()
-        
-        # Amendment / Cancellation Section
-        st.subheader("Manage Booking")
-        st.write("Need to change or cancel?")
-        
-        # Create a pre-filled email link
-        subject = f"Transport Change Request: {details['Code']}"
-        body = f"Hello, I would like to request a change for booking {details['Code']} ({details['Name']}). Details:"
-        email_link = f"mailto:transport@yourteam.com?subject={subject}&body={body}"
-        
-        st.markdown(f'<a href="{email_link}" style="text-decoration:none; background-color:#ff4b4b; color:white; padding:10px 20px; border-radius:5px;">⚠️ Request Cancellation / Amendment</a>', unsafe_allow_html=True)
-        
     else:
-        st.error("Code not found. Please check and try again.")
+        st.error("❌ Code not found. Please check your reference.")
