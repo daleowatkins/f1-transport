@@ -1,3 +1,20 @@
+[theme]
+# Official-style Aston Martin F1 Colors
+# Primary: The vibrancy of the livery (Green)
+primaryColor = "#229971"
+
+# Background: Very dark green (almost black) for that premium feel
+backgroundColor = "#002420"
+
+# Sidebar: Slightly lighter deep green to separate it
+secondaryBackgroundColor = "#00352F"
+
+# Text: White for maximum readability against the dark green
+textColor = "#FFFFFF"
+
+# Font: Sans Serif is modern and clean
+font = "sans serif"
+
 [client]
 toolbarMode = "viewer"
 
