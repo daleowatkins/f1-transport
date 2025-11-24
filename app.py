@@ -6,6 +6,12 @@ from streamlit_folium import st_folium
 # 1. Page Config
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
+# --- MEMORY FIX: Initialize Session State ---
+if 'search_performed' not in st.session_state:
+    st.session_state.search_performed = False
+if 'booking_code' not in st.session_state:
+    st.session_state.booking_code = ""
+
 # 2. Load Data
 @st.cache_data
 def load_data():
@@ -43,15 +49,25 @@ if df is None:
     st.error("⚠️ System Error: 'bookings.csv' not found.")
     st.stop()
 
-# 4. Login
+# 4. Login (Updated with Memory Logic)
 with st.container(border=True):
     st.write("Please enter your booking reference.")
-    with st.form(key='login_form'):
-        user_code = st.text_input("Booking Code").upper().strip()
-        submit_button = st.form_submit_button(label='Find My Booking', type="primary")
+    
+    # We use a callback to update the 'Memory' when the button is clicked
+    def update_search():
+        st.session_state.search_performed = True
+        # Store the code in memory so we don't lose it on refresh
+        st.session_state.booking_code = st.session_state.widget_input.upper().strip()
 
-# 5. Results
-if submit_button:
+    with st.form(key='login_form'):
+        # We link this input to 'widget_input'
+        st.text_input("Booking Code", key="widget_input")
+        # The button now triggers the 'update_search' function
+        st.form_submit_button(label='Find My Booking', type="primary", on_click=update_search)
+
+# 5. Results Logic (Checks MEMORY, not just the button)
+if st.session_state.search_performed:
+    user_code = st.session_state.booking_code
     bookings = df[df['Code'] == user_code]
 
     if not bookings.empty:
@@ -81,23 +97,23 @@ if submit_button:
                         st.link_button("📍 Google Maps Link", row['MapLink'])
                         
                 with c2:
-                    # --- NEW: PROFESSIONAL MAP (Folium) ---
+                    # --- PROFESSIONAL MAP (Folium) ---
                     lat = row.get('Lat')
                     lon = row.get('Lon')
                     
                     if pd.notna(lat) and pd.notna(lon):
-                        # Create a standard street map centered on the pickup
+                        # Create Map centered on pickup
                         m = folium.Map(location=[lat, lon], zoom_start=16)
                         
-                        # Add a professional blue pin
+                        # Add Blue Pin
                         folium.Marker(
                             [lat, lon], 
                             popup=row['Pickup'],
-                            tooltip="Pickup Point"
+                            tooltip=row['Pickup']
                         ).add_to(m)
                         
-                        # Display the map inside the card
-                        st_folium(m, height=200, use_container_width=True)
+                        # Display Map (with specific returned_objects to prevent extra reloads)
+                        st_folium(m, height=200, use_container_width=True, returned_objects=[])
                     else:
                         st.info("🗺️ Map preview not available")
 
@@ -116,3 +132,7 @@ if submit_button:
 
     else:
         st.error("❌ Code not found. Please check your reference.")
+        # Optional: Reset memory so they can try again
+        if st.button("Reset"):
+            st.session_state.search_performed = False
+            st.rerun()
