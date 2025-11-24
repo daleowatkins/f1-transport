@@ -1,0 +1,21 @@
+﻿Code,Name,Route,Pickup,MapLink
+HAM44,Lewis H,Route A,Silverstone Main Gate,https://w3w.co/clip.apples.leap
+HAM44,Roscoe (Guest),Route A,Silverstone Main Gate,https://w3w.co/clip.apples.leap
+RUS63,George R,Route B,Brackley HQ,https://w3w.co/later.guilty.park
+RUS63,Guest of George,Route B,Brackley HQ,https://w3w.co/later.guilty.park
+TOT01,Toto W,VIP Shuttle,Oxford Hotel,https://w3w.co/fancy.hotel.lobby
+TOT01,Susie W (Guest),VIP Shuttle,Oxford Hotel,https://w3w.co/fancy.hotel.lobby
+TOT01,Jack W (Guest),VIP Shuttle,Oxford Hotel,https://w3w.co/fancy.hotel.lobby
+ENG01,Bono,Route A,Silverstone Main Gate,https://w3w.co/clip.apples.leap
+ENG02,Shov,Route C,Milton Keynes Station,https://w3w.co/train.track.stop
+MEC01,Mechanic A,Route B,Brackley HQ,https://w3w.co/later.guilty.park
+MEC02,Mechanic B,Route B,Brackley HQ,https://w3w.co/later.guilty.park
+MEC03,Mechanic C,Route B,Brackley HQ,https://w3w.co/later.guilty.park
+STR01,James V,Route A,Silverstone Main Gate,https://w3w.co/clip.apples.leap
+STR01,Guest of James,Route A,Whittlebury Hall Hotel,https://w3w.co/golf.spa.resort
+LOG01,Logistics Manager,Route C,Milton Keynes Station,https://w3w.co/train.track.stop
+LOG01,Guest 1,Route C,Milton Keynes Station,https://w3w.co/train.track.stop
+LOG01,Guest 2,Route C,Milton Keynes Station,https://w3w.co/train.track.stop
+CAT01,Catering Lead,Route D,Northampton Center,https://w3w.co/town.square.statue
+SEC99,Security Team,Route D,Northampton Center,https://w3w.co/town.square.statue
+SEC99,Security Guest,Route D,Northampton Center,https://w3w.co/town.square.statue
