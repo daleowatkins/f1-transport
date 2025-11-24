@@ -54,7 +54,7 @@ if submit_button:
         for index, row in bookings.iterrows():
             with st.expander(f"🎫 TICKET: {row['Name']}", expanded=True):
                 
-                # --- NEW SECTION: TRAVEL DIRECTION BADGE ---
+                # --- TRAVEL DIRECTION BADGE ---
                 direction = str(row['Direction']).title() # Makes "both" -> "Both"
                 
                 # Color code the badge based on direction
@@ -68,7 +68,8 @@ if submit_button:
                     badge_color = "blue"
                     icon = "⬅️"
 
-                st.markdown(f":{badge_color}[**{icon} Travel: {direction}**]")
+                # UPDATE: Changed text to "Travel Direction:"
+                st.markdown(f":{badge_color}[**{icon} Travel Direction: {direction}**]")
                 st.divider()
                 # -------------------------------------------
 
