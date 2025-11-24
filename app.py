@@ -4,20 +4,30 @@ import folium
 from streamlit_folium import st_folium
 
 # 1. Page Config
-st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
+st.set_page_config(page_title="AMF1 Transport", page_icon="🏎️", layout="centered")
 
-# --- HIDE STREAMLIT STYLE (Toolbar & Footer) ---
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            .stAppDeployButton {display:none;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# --- CUSTOM CSS (For that "Premium" Aston Look) ---
+st.markdown("""
+    <style>
+    /* Hide Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stAppDeployButton {display:none;}
+    
+    /* Rounded corners for the banner */
+    img {
+        border-radius: 5px;
+    }
+    
+    /* Force specific text colors if needed */
+    h1, h2, h3 {
+        color: white !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- MEMORY FIX: Initialize Session State ---
+# --- MEMORY INITIALIZATION ---
 if 'search_performed' not in st.session_state:
     st.session_state.search_performed = False
 if 'booking_code' not in st.session_state:
@@ -28,18 +38,12 @@ if 'booking_code' not in st.session_state:
 def load_data():
     try:
         data = pd.read_csv("bookings.csv", dtype=str)
-        data.columns = data.columns.str.strip() # Clean messy headers
+        data.columns = data.columns.str.strip()
+        data['Code'] = data['Code'].ffill().str.strip().str.upper()
         
-        # Fill empty cells & Standardize
-        data['Code'] = data['Code'].ffill()
-        data['Code'] = data['Code'].str.strip().str.upper()
-        
-        if 'Direction' not in data.columns:
-            data['Direction'] = "Both"
-        if 'PickupTime' not in data.columns:
-            data['PickupTime'] = "TBC"
+        if 'Direction' not in data.columns: data['Direction'] = "Both"
+        if 'PickupTime' not in data.columns: data['PickupTime'] = "TBC"
 
-        # Convert Lat/Lon to numbers
         if 'Lat' in data.columns and 'Lon' in data.columns:
             data['Lat'] = pd.to_numeric(data['Lat'], errors='coerce')
             data['Lon'] = pd.to_numeric(data['Lon'], errors='coerce')
@@ -50,29 +54,36 @@ def load_data():
 
 df = load_data()
 
-# 3. Branding
+# --- 3. BRANDING HEADER ---
+# This displays your banner image at the very top
+try:
+    st.image("banner.jpg", use_container_width=True) 
+except:
+    pass
+
+# Sidebar Logo
 try:
     st.logo("logo.png")
 except:
     pass
 
-st.title("🎄 Christmas Party Transport")
+st.title("AMF1 Team Transport")
 
 if df is None:
     st.error("⚠️ System Error: 'bookings.csv' not found.")
     st.stop()
 
-# 4. Login (Updated with Memory Logic)
+# 4. Login Form
 with st.container(border=True):
     st.write("Please enter your booking reference.")
     
-    # Callback to save the search
     def update_search():
         st.session_state.search_performed = True
         st.session_state.booking_code = st.session_state.widget_input.upper().strip()
 
     with st.form(key='login_form'):
         st.text_input("Booking Code", key="widget_input")
+        # The primary button will now use the "Aston Green" from config.toml
         st.form_submit_button(label='Find My Booking', type="primary", on_click=update_search)
 
 # 5. Results Logic
@@ -86,100 +97,68 @@ if st.session_state.search_performed:
         for index, row in bookings.iterrows():
             with st.expander(f"🎫 TICKET: {row['Name']}", expanded=True):
                 
-                # --- LOGIC: DETERMINE LABELS & MESSAGES ---
+                # --- TRAVEL BADGE ---
                 direction = str(row['Direction']).title()
-                
-                # Defaults
                 label_text = "Pickup:"
-                show_pickup_time = False
-                show_return_msg = False
-                badge_color = "blue"
-                icon = "🚌"
-                pin_color = "blue" 
+                show_time, show_return_msg = False, False
+                badge_color, icon, pin_color = "blue", "🚌", "blue"
 
                 if "Both" in direction:
-                    label_text = "Pickup & Dropoff:"
-                    show_pickup_time = True
-                    show_return_msg = True
-                    badge_color, icon = "green", "🔄"
-                    pin_color = "green"
-                elif "To" in direction: # To Party Only
-                    label_text = "Pickup:"
-                    show_pickup_time = True
-                    show_return_msg = False
-                    badge_color, icon = "orange", "➡️"
-                    pin_color = "green"
-                else: # Return Only
-                    label_text = "Dropoff:"
-                    show_pickup_time = False
-                    show_return_msg = True
-                    badge_color, icon = "blue", "⬅️"
-                    pin_color = "blue"
+                    label_text, show_time, show_return_msg = "Pickup & Dropoff:", True, True
+                    badge_color, icon, pin_color = "green", "🔄", "green"
+                elif "To" in direction:
+                    label_text, show_time, show_return_msg = "Pickup:", True, False
+                    badge_color, icon, pin_color = "orange", "➡️", "green"
+                else:
+                    label_text, show_time, show_return_msg = "Dropoff:", False, True
+                    badge_color, icon, pin_color = "blue", "⬅️", "blue"
 
-                # --- DISPLAY BADGE ---
                 st.markdown(f":{badge_color}[**{icon} Travel Direction: {direction}**]")
                 st.divider()
 
-                # --- DETAILS SECTION ---
+                # --- DETAILS ---
                 c1, c2 = st.columns([1.5, 2])
                 with c1:
                     st.write(f"**Route:** {row['Route']}")
-                    
-                    # Dynamic Label
                     st.write(f"**{label_text}** {row['Pickup']}")
                     
-                    # Show Pickup Time
-                    if show_pickup_time:
+                    if show_time:
                         p_time = row.get('PickupTime')
                         if pd.isna(p_time): p_time = "TBC"
-                        st.write(f"**⏱️ Pickup Time:** {p_time}")
+                        st.write(f"**⏱️ Time:** {p_time}")
 
-                    # Show Return Message
                     if show_return_msg:
-                        st.info("ℹ️ **Return:** All coaches depart Silverstone at 01:00 AM.")
+                        st.info("ℹ️ **Return:** Departs 01:00 AM")
 
-                    # UPDATE: Changed Button Text
                     if pd.notna(row['MapLink']):
                         st.link_button("/// What 3 Words Link", row['MapLink'])
                         
                 with c2:
-                    # --- PROFESSIONAL MAP (Folium) ---
-                    lat = row.get('Lat')
-                    lon = row.get('Lon')
-                    
+                    # --- MAP ---
+                    lat, lon = row.get('Lat'), row.get('Lon')
                     if pd.notna(lat) and pd.notna(lon):
                         m = folium.Map(location=[lat, lon], zoom_start=16)
-                        
-                        # Custom Icon
-                        icon_obj = folium.Icon(color=pin_color, icon="bus", prefix="fa")
-                        
                         folium.Marker(
                             [lat, lon], 
-                            popup=row['Pickup'],
-                            tooltip=row['Pickup'],
-                            icon=icon_obj
+                            popup=row['Pickup'], 
+                            # We use 'darkgreen' or 'blue' for the pin color to match the theme
+                            icon=folium.Icon(color=pin_color, icon="bus", prefix="fa")
                         ).add_to(m)
                         
-                        st_folium(
-                            m, 
-                            height=200, 
-                            use_container_width=True, 
-                            returned_objects=[],
-                            key=f"map_{index}" 
-                        )
+                        st_folium(m, height=200, use_container_width=True, returned_objects=[], key=f"map_{index}")
                     else:
-                        st.info("🗺️ Map preview not available")
+                        st.info("🗺️ Map not available")
 
-        # Email Button
+        # Footer
         st.divider()
         main_contact = bookings.iloc[0]['Name']
         subject = f"Change Request: {user_code}"
-        body = f"Hello Transport Team,%0D%0A%0D%0AI need to request a change for booking {user_code} (Main Contact: {main_contact})."
+        body = f"Hello Transport Team,%0D%0A%0D%0AI need to request a change for booking {user_code} (Contact: {main_contact})."
         
         st.markdown(
             f'<div style="text-align: center;"><a href="mailto:transport@yourteam.com?subject={subject}&body={body}" '
-            f'style="text-decoration:none; background-color:#FF4B4B; color:white; padding:10px 20px; border-radius:5px;">'
-            f'✉️ Request Amendment for Group</a></div>', 
+            f'style="text-decoration:none; background-color:#229971; color:white; padding:10px 20px; border-radius:5px;">'
+            f'✉️ Request Amendment / Cancellation</a></div>', 
             unsafe_allow_html=True
         )
 
