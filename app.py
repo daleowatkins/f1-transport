@@ -92,7 +92,7 @@ if st.session_state.search_performed:
                     st.write(f"**Route:** {row['Route']}")
                     st.write(f"**Pickup:** {row['Pickup']}")
                     if pd.notna(row['MapLink']):
-                        st.link_button("📍 Google Maps Link", row['MapLink'])
+                        st.link_button("📍 What 3 Words Link", row['MapLink'])
                         
                 with c2:
                     # --- PROFESSIONAL MAP (Folium) ---
@@ -138,3 +138,4 @@ if st.session_state.search_performed:
         if st.button("Reset Search"):
             st.session_state.search_performed = False
             st.rerun()
+
