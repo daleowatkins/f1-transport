@@ -4,30 +4,30 @@ import pandas as pd
 # 1. Page Config
 st.set_page_config(page_title="Team Transport", page_icon="🏎️", layout="centered")
 
-# 2. Load Data (With Safety Fixes)
+# 2. Load Data
 @st.cache_data
 def load_data():
     try:
-        # Read the file as text (dtype=str) to keep phone numbers/codes safe
+        # Read CSV as string to protect data
         data = pd.read_csv("bookings.csv", dtype=str)
         
-        # ### NEW: Fix Empty Cells ###
-        # If you left the guest's code blank in Excel, this copies the code from the person above
+        # FIXES: Fill empty cells and standardize Codes
         data['Code'] = data['Code'].ffill()
-        
-        # ### NEW: Cleanup ###
-        # Forces all codes to Uppercase and removes invisible spaces
         data['Code'] = data['Code'].str.strip().str.upper()
         
+        # SAFETY: If 'Direction' column is missing in CSV, assume 'Both' to prevent crash
+        if 'Direction' not in data.columns:
+            data['Direction'] = "Both"
+            
         return data
     except FileNotFoundError:
         return None
 
 df = load_data()
 
-# 3. Main App Interface
+# 3. Logo & Title
 try:
-    st.logo("logo.png") # Will show if you have a logo.png
+    st.logo("logo.png")
 except:
     pass
 
@@ -37,26 +37,41 @@ if df is None:
     st.error("⚠️ System Error: 'bookings.csv' not found.")
     st.stop()
 
-# 4. Login Box
+# 4. Login Form
 with st.container(border=True):
     st.write("Please enter your booking reference.")
     with st.form(key='login_form'):
-        # ### NEW: Auto-uppercase input so 'ham44' works for 'HAM44'
         user_code = st.text_input("Booking Code").upper().strip()
         submit_button = st.form_submit_button(label='Find My Booking', type="primary")
 
-# 5. Results Logic (The fix is here)
+# 5. Results Logic
 if submit_button:
-    # Find ALL rows that match the code
     bookings = df[df['Code'] == user_code]
 
     if not bookings.empty:
         st.success(f"✅ Found {len(bookings)} passengers")
         
-        # ### NEW: The Loop ###
-        # This goes through EVERY person found, not just the first one
         for index, row in bookings.iterrows():
             with st.expander(f"🎫 TICKET: {row['Name']}", expanded=True):
+                
+                # --- NEW SECTION: TRAVEL DIRECTION BADGE ---
+                direction = str(row['Direction']).title() # Makes "both" -> "Both"
+                
+                # Color code the badge based on direction
+                if "Both" in direction:
+                    badge_color = "green"
+                    icon = "🔄"
+                elif "To" in direction:
+                    badge_color = "orange"
+                    icon = "➡️"
+                else:
+                    badge_color = "blue"
+                    icon = "⬅️"
+
+                st.markdown(f":{badge_color}[**{icon} Travel: {direction}**]")
+                st.divider()
+                # -------------------------------------------
+
                 c1, c2 = st.columns([2, 1])
                 with c1:
                     st.write(f"**Route:** {row['Route']}")
@@ -67,7 +82,7 @@ if submit_button:
                     else:
                         st.write("*(No Map)*")
         
-        # Email Amendment Button
+        # Email Button
         st.divider()
         main_contact = bookings.iloc[0]['Name']
         subject = f"Change Request: {user_code}"
