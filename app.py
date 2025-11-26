@@ -126,9 +126,12 @@ if st.session_state.search_performed:
                         p_time = row.get('PickupTime')
                         if pd.isna(p_time): p_time = "TBC"
                         st.write(f"**⏱️ Time:** {p_time}")
+                        
+                        # --- NEW DEPARTURE WARNING ---
+                        st.info("⚠️ Please ensure you are at your pickup point 5 mins before your time. The coach will unfortunately only be able to wait 2 minutes for any missing passengers.")
 
                     if show_return_msg:
-                        st.info("ℹ️ **Return:** Departs 01:00 AM")
+                        st.info("ℹ️ **Return:** All coaches depart Silverstone at 01:00 AM.")
 
                     if pd.notna(row['MapLink']):
                         st.link_button("/// What 3 Words Link", row['MapLink'])
